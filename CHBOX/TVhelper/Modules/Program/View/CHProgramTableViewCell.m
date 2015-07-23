@@ -25,7 +25,7 @@
     if(cell == nil) {
         NSLog(@"创建CELL");
         cell = [[[NSBundle mainBundle] loadNibNamed:@"CHProgramTableViewCell" owner:nil options:nil] lastObject];
-        cell.backgroundColor = COLOR_RGB(60, 60, 60, 1);
+        cell.backgroundColor = [UIColor clearColor];
     }
     
     return cell;
