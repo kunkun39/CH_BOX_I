@@ -26,23 +26,12 @@
 #define SOUND_ID 1114
 #define TEST_STR @"http://192.168.0.222:8000/live.ts?freq=259000&pmtPid=500&aPid=520&vPid=510&dmxId=1&service_id=500"
 
-typedef NS_ENUM(NSInteger, channelTag)
-{
-    allChannel = 1030,
-    HDChannel = 1031,
-    starChannel = 1032,
-    childChannel = 1033,
-    CCTVChannel = 1034
-    
-};
-
 typedef NS_ENUM(NSInteger, CHtag)
 {
     TV = 3,
     channel = 4
 };
 @interface CHTVViewController ()<UITableViewDataSource, UITableViewDelegate, PlayerControllerDelegate>
-@property (nonatomic, strong)UIButton * channelPreBtn;
 @property (nonatomic, strong)UITableView * channelTableView;
 @property (nonatomic, strong)MPMoviePlayerController * moviewPlayer;
 @property (nonatomic, strong)CHTVSocketManager * socketManager;
@@ -56,6 +45,9 @@ typedef NS_ENUM(NSInteger, CHtag)
 
 //节目相关
 @property (nonatomic, strong)NSDictionary * programInfoDic;
+
+//频道TAB选择相关
+@property (nonatomic, copy) NSString *selectedTabIndex;
 @end
 
 @implementation CHTVViewController
@@ -128,57 +120,39 @@ typedef NS_ENUM(NSInteger, CHtag)
 
 - (void)initMenuBtn
 {
+    _selectedTabIndex = @"0";
     NSArray * btnNames = @[@"全部", @"高清", @"卫视", @"少儿", @"央视"];
-    UIButton * currentBtn = nil;
+    CGFloat screenWidth = [[UIScreen mainScreen] bounds].size.width;
+    CGFloat screenHeight = [[UIScreen mainScreen] bounds].size.height;
+    CGFloat btnWidth = screenWidth / 5;
+    
     for (int i = 0; i < 5; i ++) {
-        UIButton * btn = [UIButton createButtonWithFrame:CGRectZero Title:btnNames[i] Target:self Tag:allChannel + i Selector:@selector(processChannelBtn:)];
-        [btn setTitleColor:[UIColor orangeColor] forState:UIControlStateSelected];
-        btn.layer.borderWidth = 1;
-        btn.layer.borderColor = [[UIColor whiteColor] CGColor];
-        [self.view addSubview:btn];
-        if (i == 0) {
-            [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-aboutSpacing-[btn]" options:NSLayoutFormatDirectionLeadingToTrailing metrics:@{@"aboutSpacing":@(LINE_SPACING)} views:NSDictionaryOfVariableBindings(btn)]];
-            btn.selected = YES;
-            _channelPreBtn = btn;
-        }else if (i == 4){
-            [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[currentBtn]-aboutSpacing-[btn(==currentBtn)]-aboutSpacing-|" options:NSLayoutFormatDirectionLeadingToTrailing metrics:@{@"aboutSpacing":@(LINE_SPACING)} views:NSDictionaryOfVariableBindings(btn,currentBtn)]];
-        }else{
-            [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:[currentBtn]-aboutSpacing-[btn(==currentBtn)]" options:NSLayoutFormatDirectionLeadingToTrailing metrics:@{@"aboutSpacing":@(LINE_SPACING)} views:NSDictionaryOfVariableBindings(btn,currentBtn)]];
+        //添加BUTTON
+        UIButton *tabButton = [UIButton buttonWithType:UIButtonTypeCustom];
+        [tabButton setTitle:btnNames[i] forState:UIControlStateNormal];
+        [tabButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [tabButton setBackgroundImage:[UIImage imageNamed:@"tab_bg"] forState:UIControlStateNormal];
+        tabButton.frame = CGRectMake(0 + i * btnWidth, screenHeight - 40, btnWidth, 40);
+        tabButton.titleLabel.textAlignment = NSTextAlignmentCenter;
+        tabButton.titleLabel.font = [UIFont systemFontOfSize:12];
+        
+        //设置BUTTON的事件
+        tabButton.tag = 1000 + i + [_selectedTabIndex intValue];
+        [tabButton addTarget:self action:@selector(processChannelBtn:) forControlEvents:UIControlEventTouchUpInside];
+        
+        //判断是够选中
+        if(i == 0) {
+            [tabButton setTitleColor:[UIColor orangeColor] forState:UIControlStateNormal];
         }
-        [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-aboutSpacing-[btn(30)]" options:NSLayoutFormatDirectionLeadingToTrailing metrics:@{@"aboutSpacing":@(NAV_BAR_HEIGHT)} views:NSDictionaryOfVariableBindings(btn)]];
-        currentBtn = btn;
-        [btn layoutIfNeeded];
+        
+        [self.view addSubview:tabButton];
     }
 }
 
 #pragma mark - property
-- (UITableView *)channelTableView
-{
-    if (!_channelTableView) {
-        _channelTableView = [[UITableView alloc]initWithFrame:CGRectMake(0, NAV_BAR_HEIGHT + 30, SCREEN_WIDTH,SCREEN_HEIGHT - NAV_BAR_HEIGHT - 30)style:UITableViewStylePlain];
-        _channelTableView.backgroundColor = [UIColor clearColor];
-        _channelTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-        _channelTableView.allowsSelection = NO;
-        _channelTableView.delegate = self;
-        _channelTableView.dataSource = self;
-
-    }
-    return _channelTableView;
-}
-
-- (MPMoviePlayerController *)moviewPlayer
-{
-    if (_moviewPlayer) {
-        _moviewPlayer = [[MPMoviePlayerController alloc] init];
-        _moviewPlayer.movieSourceType = MPMovieSourceTypeStreaming;
-        self.moviewPlayer.fullscreen = YES;
-    }
-    return _moviewPlayer;
-}
 
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
 }
 
 #pragma mark - process
@@ -188,36 +162,51 @@ typedef NS_ENUM(NSInteger, CHtag)
     [self dismissViewControllerAnimated:YES completion:nil];
 }
 
+
+- (NSData *)transformData:(NSString *)str
+{
+    return [str dataUsingEncoding:NSUTF8StringEncoding];
+}
+
+#pragma make - ***********************************处理TAB相关操作*********************************************
+
 - (void)processChannelBtn:(UIButton *)btn
 {
     AudioServicesPlaySystemSound(SOUND_ID);
-    _channelPreBtn.selected = NO;
-    btn.selected = YES;
-    _channelPreBtn = btn;
-    switch (btn.tag) {
-        case allChannel:
+    
+    //设置按钮的状态
+    for (int i = 0; i < 5; i ++) {
+        UIButton *button = (UIButton *)[self.view viewWithTag:i + 1000];
+        [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    }
+    
+    [btn setTitleColor:[UIColor orangeColor] forState:UIControlStateNormal];
+    
+    //切换数据
+    switch (btn.tag - 999) {
+        case 1:
             _tmpAry = _nameAry;
             break;
-        case HDChannel:
+        case 2:
         {
             NSPredicate * pred = [NSPredicate predicateWithFormat:@"SELF CONTAINS 'HD' OR SELF CONTAINS '高清'"];
             _tmpAry = [_nameAry filteredArrayUsingPredicate:pred];
         }
             break;
-        case starChannel:
+        case 3:
         {
             NSPredicate * pred = [NSPredicate predicateWithFormat:@"SELF CONTAINS '卫视'"];
             _tmpAry = [_nameAry filteredArrayUsingPredicate:pred];
             
         }
             break;
-        case childChannel:
+        case 4:
         {
             NSPredicate * pred = [NSPredicate predicateWithFormat:@"SELF CONTAINS '少儿' OR SELF CONTAINS '卡通' OR SELF CONTAINS '动漫' OR SELF CONTAINS '成长'"];
             _tmpAry = [_nameAry filteredArrayUsingPredicate:pred];
         }
             break;
-        case CCTVChannel:
+        case 5:
         {
             NSPredicate * pred = [NSPredicate predicateWithFormat:@"SELF CONTAINS 'CCTV'"];
             _tmpAry = [_nameAry filteredArrayUsingPredicate:pred];
@@ -227,16 +216,25 @@ typedef NS_ENUM(NSInteger, CHtag)
             break;
     }
     [self.channelTableView reloadData];
-    
 }
-
-- (NSData *)transformData:(NSString *)str
-{
-    return [str dataUsingEncoding:NSUTF8StringEncoding];
-}
-
 
 #pragma mark - ********************************table view相关参数设置******************************************
+
+- (UITableView *)channelTableView
+{
+    if (!_channelTableView) {
+        _channelTableView = [[UITableView alloc]initWithFrame:CGRectMake(0, NAV_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - NAV_BAR_HEIGHT - 40)style:UITableViewStylePlain];
+        _channelTableView.backgroundColor = [UIColor clearColor];
+        UIImage *bgImage = [UIImage imageNamed:@"remote_bk.png"];
+        _channelTableView.backgroundView = [[UIImageView alloc] initWithImage:bgImage];
+        _channelTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+        _channelTableView.allowsSelection = NO;
+        _channelTableView.delegate = self;
+        _channelTableView.dataSource = self;
+        
+    }
+    return _channelTableView;
+}
 
 - (NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
@@ -270,7 +268,7 @@ typedef NS_ENUM(NSInteger, CHtag)
     channelNameLabel.textAlignment = NSTextAlignmentLeft;
     channelNameLabel.textColor = [UIColor whiteColor];
     channelNameLabel.font = [UIFont systemFontOfSize:11];
-    channelNameLabel.backgroundColor = COLOR_RGB(30, 30, 30, 1);
+    channelNameLabel.backgroundColor = COLOR_RGB(27, 98, 160, 0.3);
     [cell addSubview:channelNameLabel];
     
     //添加节目信息播放时间
@@ -360,6 +358,8 @@ typedef NS_ENUM(NSInteger, CHtag)
 
 - (void) checkProgramDetails:(UIButton *)clickButton
 {
+    AudioServicesPlaySystemSound(SOUND_ID);
+    
     NSInteger selectedRow = clickButton.tag - 2000;
     NSString *channelName = _tmpAry[selectedRow];
     
@@ -369,31 +369,17 @@ typedef NS_ENUM(NSInteger, CHtag)
     NSLog(@"details for tag %ld for channel %@", selectedRow, channelName);
 }
 
-- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
-{
-    [collectionView deselectItemAtIndexPath:indexPath animated:YES];
-    AudioServicesPlaySystemSound(SOUND_ID);
-    for (NSDictionary * dic in _channelAry) {
-        if ([[dic objectForKey:@"service_name"] isEqualToString:_tmpAry[indexPath.row]]) {
-            //:8000/live.tsfreq=259000&pmtPid=500&aPid=520&vPid=510&dmxId=1&service_id=500
-            self.channeStr = [NSString stringWithFormat:@"http://%@:8000/live.ts?freq=%@&pmtPid=%@&aPid=%@&vPid=%@&dmxId=%@&service_id=%@", self.socketManager.selectedIP, [dic objectForKey:@"freqKHz"], [dic objectForKey:@"pmtPid"], [dic objectForKey:@"audio_pid"], [dic objectForKey:@"video_pid"], [dic objectForKey:@"demux_id"], [dic objectForKey:@"service_id"]];
-            if (_tmpAry.count >0) {
-                if ([_tmpAry[0] containsString:@"HD"] || [_tmpAry[0] containsString:@"高清"]) {
-                    
-                    
-                    NSString * vStr = [self dealStrWithVStream:[dic objectForKey:@"vStreamType"]];
-                    NSString * aStr = [self dealStrWithAStream:[dic objectForKey:@"aStreamType"]];
-                    NSString * trainingStr = [NSString stringWithFormat:@"&encode=1&encSrc=0&aStreamType=%@&vStreamType=%@", aStr, vStr];
-                    self.channeStr = [NSString stringWithString:[self.channeStr stringByAppendingString:trainingStr]];
-                }
-            }
-            [self btnbtn];
-        }
-    }
-}
-
-
 #pragma mark - *****************************播放相关参数设定************************************
+
+- (MPMoviePlayerController *)moviewPlayer
+{
+    if (_moviewPlayer) {
+        _moviewPlayer = [[MPMoviePlayerController alloc] init];
+        _moviewPlayer.movieSourceType = MPMovieSourceTypeStreaming;
+        self.moviewPlayer.fullscreen = YES;
+    }
+    return _moviewPlayer;
+}
 
 - (NSURL *)playCtrlGetCurrMediaTitle:(NSString **)title lastPlayPos:(long *)lastPlayPos
 {
