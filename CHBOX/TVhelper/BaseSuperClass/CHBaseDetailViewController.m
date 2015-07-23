@@ -67,7 +67,7 @@ enum controlBtn {gobackBtn, CHBoxBtn};
 {
     if (!_navigationBarView) {
         _navigationBarView = [[UIView alloc]initWithFrame:CGRectMake(0, 0, SCREEN_WIDTH, NAV_BAR_HEIGHT)];
-        _navigationBarView.backgroundColor = [UIColor  colorWithPatternImage:[UIImage imageNamed:@"banner.png"]];
+        _navigationBarView.backgroundColor = COLOR_RGB(24, 66, 121, 1);
     }
     return _navigationBarView;
 }
