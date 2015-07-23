@@ -88,7 +88,7 @@
 {
     self.modalTransitionStyle = UIModalTransitionStyleFlipHorizontal;
     self.view.translatesAutoresizingMaskIntoConstraints = YES;
-    self.view.backgroundColor = COLOR_RGB(50, 50, 50, 1);
+    self.view.backgroundColor = [UIColor clearColor];
     [self.view addSubview:self.programTableView];
     [self.view bringSubviewToFront:self.view.subviews[1]];
 }
@@ -139,6 +139,8 @@
     if (!_programTableView) {
         _programTableView = [[UITableView alloc]initWithFrame:CGRectMake(0, NAV_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - NAV_BAR_HEIGHT - 40)style:UITableViewStylePlain];
         _programTableView.backgroundColor = [UIColor clearColor];
+        UIImage *bgImage = [UIImage imageNamed:@"remote_bk.png"];
+        _programTableView.backgroundView = [[UIImageView alloc] initWithImage:bgImage];
         _programTableView.separatorStyle = UITableViewCellSeparatorStyleNone;
         _programTableView.allowsSelection = NO;
         _programTableView.delegate = self;
@@ -184,7 +186,8 @@
     //添加中间间隔线
     UILabel *middleLabel = [[UILabel alloc]initWithFrame:CGRectMake(0, 40, screenWidth, 10)];
     middleLabel.text = @"";
-    middleLabel.backgroundColor = COLOR_RGB(30, 30, 30, 1);
+    middleLabel.backgroundColor = COLOR_RGB(27, 98, 160, 0.3);
+    
     [cell addSubview:middleLabel];
     
     return cell;
