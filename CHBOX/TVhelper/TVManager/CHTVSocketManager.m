@@ -36,7 +36,7 @@ static CHTVSocketManager * socketManager = nil;
         [self observeTVIP];
         
         //初始化TIMER线程，并每隔10分钟不停的去更新节目信息
-        _timerForProgram = [NSTimer scheduledTimerWithTimeInterval:60 target:self selector:@selector(socketProgramVersionInfo) userInfo:nil repeats:YES];
+        _timerForProgram = [NSTimer scheduledTimerWithTimeInterval:10 target:self selector:@selector(socketProgramVersionInfo) userInfo:nil repeats:YES];
         [[NSRunLoop currentRunLoop]addTimer:_timerForProgram forMode:NSDefaultRunLoopMode];
         NSLog(@"open scheduler task for program info get");
     }
